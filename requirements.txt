@@ -1,0 +1,8 @@
+# Для игры
+pygame-ce>=2.5
+
+# Для сборки .exe (build_exe.bat)
+pyinstaller>=6.0
+
+# Только для инструмента tools/prepare_sprite.py (в игру не попадает)
+numpy>=2.0

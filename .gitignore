@@ -1,0 +1,13 @@
+# Окружение Python и кэш
+.venv/
+__pycache__/
+*.pyc
+
+# Сборка .exe (PyInstaller)
+build/
+dist/
+*.spec
+
+# Личные файлы игрока: рекорды и последний IP для сетевой дуэли
+records.json
+network.json
