@@ -3,7 +3,8 @@ import json
 
 import pygame
 
-from common import WIDTH, HEIGHT, FPS, TEXT_COLOR, GRAY_COLOR, GOLD_COLOR, DATA_DIR, screen, small_font, font, big_font
+from common import (WIDTH, HEIGHT, FPS, TEXT_COLOR, GRAY_COLOR, GOLD_COLOR, DATA_DIR, VERSION, screen,
+                    small_font, font, big_font)
 import duel
 import pixel_art as px
 from jump_background import Background, PIXELS_PER_METER
@@ -148,6 +149,8 @@ def draw_menu():
     record = f"Рекорд: {best_score()} м    " if best_score() else ""
     hint = outlined_text(f"{record}Стрелки + Enter или мышь    F11 — полный экран", small_font, GRAY_COLOR)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 20)))
+    version = outlined_text(f"версия {VERSION}", small_font, GRAY_COLOR)  # чтобы сверять версии перед дуэлью
+    screen.blit(version, version.get_rect(topright=(WIDTH - 6, 6)))
 
 
 def draw_name_input():

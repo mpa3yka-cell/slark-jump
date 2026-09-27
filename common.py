@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pygame
 
+VERSION = "1.0.1"   # показывается в меню; меняйте вместе с build_exe.bat и tools\version_info.txt
 WIDTH, HEIGHT = 800, 600
 FPS = 60
 
