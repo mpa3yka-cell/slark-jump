@@ -28,10 +28,8 @@ import pygame
 
 from common import (WIDTH, HEIGHT, TEXT_COLOR, GRAY_COLOR, GOLD_COLOR, CARD_COLOR, DATA_DIR, screen,
                     small_font, font, big_font, draw_text, draw_button)
-from jump_game import JumpGame
-
-PORT = 50505
-DISCOVERY_PORT = 50506    # сюда клиенты спрашивают «кто тут создал игру?»
+from jump_game import JumpGam
+PORT = 50505DISCOVERY_PORT = 50506    # сюда клиенты спрашивают «кто тут создал игру?»
 GAME_TAG = "slark-duel"   # чтобы не путать наши сообщения с чужими
 PROTOCOL = 5              # версия сетевой игры: у обоих игроков должна совпадать
                           # (5 — кинжалы: новое сообщение «кинжал брошен»)
@@ -61,7 +59,6 @@ class Connection:
         self.inbox = queue.Queue()
         self.alive = True
         threading.Thread(target=self._read_loop, daemon=True).start()
-
     def _read_loop(self):
         buffer = self.buffer
         try:
@@ -99,8 +96,6 @@ class Connection:
         except OSError:
             pass
         self.sock.close()
-
-
 def read_first_line(sock, timeout=3):
     """Читает из соединения байты до первого перевода строки (одно сообщение)."""
     sock.settimeout(timeout)
@@ -153,7 +148,7 @@ class Host:
         finally:
             self.server.close()
 
-    def close(self):
+    ef close(self):
         self.closed = True
         self.server.close()
 
@@ -264,7 +259,7 @@ class Finder:
         for host in list(self.hosts.values()):
             fresh = [ip for ip, seen in list(host["ips"].items()) if now - seen < 3]
             if not fresh:
-                continue
+    =      continue
             # лучше всего: этот же компьютер, потом — адрес из нашей же сети, потом — любой
             fresh.sort(key=lambda ip: (not ip.startswith("127."), ip.rsplit(".", 1)[0] not in own_prefixes, ip))
             result.append((fresh[0], host))
@@ -308,8 +303,7 @@ def vpn_warning():
             probe.connect((neighbor, 9))
             source = probe.getsockname()[0]
             probe.close()
-        except OSError:
-            continue
+        except OSError:          continue
         if source.rsplit(".", 1)[0] != prefix:
             return (f"Похоже, VPN перехватывает домашнюю сеть {prefix}.*: пакеты туда идут через {source}. "
                     f"Выключите VPN на время игры, иначе соединение не установится.")
