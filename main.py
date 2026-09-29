@@ -7,8 +7,9 @@ from common import (WIDTH, HEIGHT, FPS, TEXT_COLOR, GRAY_COLOR, GOLD_COLOR, DATA
                     small_font, font, big_font)
 import duel
 import pixel_art as px
-from jump_background import Background, PIXELS_PER_METER
+from jump_background import Background, BIOMES, biome_index, PIXELS_PER_METER
 from jump_game import JumpGame, art, outlined_text
+from music import Music
 
 RECORDS_FILE = DATA_DIR / "records.json"
 MAX_RECORDS = 10
@@ -117,6 +118,23 @@ def finish_game():
     state = "over"
 
 
+# --- Музыка ---
+
+def music_zone():
+    """Зона, чья мелодия должна звучать: там, где сейчас герой. В меню играет мелодия замка."""
+    height = 0
+    if state in ("play", "over"):
+        height = game.height_m
+    elif state == "net" and net_screen.mode == "duel" and net_screen.session.game:
+        height = net_screen.session.game.height_m
+    return BIOMES[biome_index(height)]["id"]
+
+
+def typing_text():
+    """Сейчас вводят имя или адрес — буква M там нужна для текста, а не для музыки."""
+    return state == "name" or (state == "net" and net_screen.mode in ("manual", "diag_input"))
+
+
 # --- Отрисовка ---
 
 def draw_backdrop():
@@ -147,7 +165,8 @@ def draw_menu():
     for i, (text, rect) in enumerate(zip(MENU_ITEMS, menu_rects())):
         draw_pixel_button(rect, text, i == menu_selected)
     record = f"Рекорд: {best_score()} м    " if best_score() else ""
-    hint = outlined_text(f"{record}Стрелки + Enter или мышь    F11 — полный экран", small_font, GRAY_COLOR)
+    hint = outlined_text(f"{record}Стрелки + Enter или мышь    M — музыка    F11 — полный экран",
+                         small_font, GRAY_COLOR)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 20)))
     version = outlined_text(f"версия {VERSION}", small_font, GRAY_COLOR)  # чтобы сверять версии перед дуэлью
     screen.blit(version, version.get_rect(topright=(WIDTH - 6, 6)))
@@ -211,6 +230,7 @@ new_record = False
 last_place = None
 backdrop = Background()
 backdrop_climbed = 0
+music = Music()
 ticks = 0
 # "menu", "name", "records", "play", "over", "net" (сетевой дуэлью управляет net_screen из duel.py)
 state = "menu"
@@ -224,6 +244,9 @@ while running:
 
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
             pygame.display.toggle_fullscreen()
+
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_m and not typing_text():
+            music.toggle()
 
         elif state == "menu":
             if event.type == pygame.KEYDOWN:
@@ -293,6 +316,8 @@ while running:
             backdrop = Background()  # начинаем путь заново — облака и туманности строятся с нуля
         backdrop.update(backdrop_climbed)
         backdrop.banner_timer = 0  # названия зон в меню не показываем
+
+    music.play(music_zone())
 
     # отрисовка
     if state in ("play", "over"):
