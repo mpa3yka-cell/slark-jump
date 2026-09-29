@@ -2,7 +2,7 @@
 rem Builds the game as a folder dist\SlarkJump\ (SlarkJump.exe + _internal) and packs it into a ZIP.
 rem A folder build triggers antivirus false alarms much less often than a single self-extracting .exe.
 rem When releasing a new version, change VERSION here, in common.py and in tools\version_info.txt.
-set VERSION=1.0.1
+set VERSION=1.1.0
 cd /d "%~dp0"
 .venv\Scripts\pyinstaller.exe --noconfirm --onedir --windowed --noupx --name SlarkJump ^
   --icon "%~dp0assets\icon.ico" --add-data "%~dp0assets;assets" ^
