@@ -1,13 +1,18 @@
-"""Создаёт фоновую музыку для зон: assets/music_valley.wav, music_sunset.wav, music_clouds.wav, music_space.wav.
+r"""Создаёт фоновую музыку: assets/music_valley.ogg.
 
 Звучит как старая приставка Nintendo (NES): два «квадратных» голоса с разной скважностью, 4-битный
-треугольник для баса и шумовой канал для ударных. Каждая мелодия — бесшовная петля.
+треугольник для баса и шумовой канал для ударных. Мелодия — бесшовная петля.
 
-Запуск: .venv\\Scripts\\python.exe tools\\make_music.py
+Запуск: .venv\Scripts\python.exe tools\make_music.py
+
+Сначала пишется .wav, потом (если установлен ffmpeg) он жмётся в .ogg и удаляется — .ogg в 13 раз
+легче, а игра одинаково хорошо играет и .ogg, и .wav.
 """
 import math
 import random
+import shutil
 import struct
+import subprocess
 import wave
 from pathlib import Path
 
@@ -148,6 +153,22 @@ class Song:
             f.setframerate(RATE)
             f.writeframes(b"".join(struct.pack("<h", int(s * scale * 32767)) for s in self.buffer))
         print(f"{name}: {self.length / RATE:.1f} с")
+        compress(name)
+
+
+def compress(name):
+    """Жмёт готовый .wav в .ogg (во много раз меньше) и убирает .wav — в репозитории лежит только ogg.
+    Если ffmpeg не установлен, wav остаётся как есть: игра умеет играть и из wav."""
+    wav, ogg = ASSETS / name, ASSETS / (Path(name).stem + ".ogg")
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        print("ffmpeg не найден — оставляю", name)
+        return
+    before = wav.stat().st_size
+    subprocess.run([ffmpeg, "-loglevel", "error", "-i", str(wav), "-c:a", "libvorbis",
+                    "-qscale", "5", "-map_metadata", "-1", str(ogg), "-y"], check=True)
+    wav.unlink()
+    print(f"{ogg.name}: {ogg.stat().st_size / 1048576:.2f} МБ вместо {before / 1048576:.2f} МБ")
 
 
 # --- Долина замка: мрачная готика, ре минор ---
@@ -185,112 +206,5 @@ def valley():
     song.write("music_valley.wav")
 
 
-# --- Кровавый закат: светлая, с надеждой, соль мажор ---
-
-def sunset():
-    chords = "G D Em C G D Em C C D Bm Em C D G D".split()
-    song = Song(bpm=128, bars=len(chords))
-    lead = ("B4.2 D5.2 G5.4 F#5.2 G5.2 A5.4   F#5.4 D5.4 A4.8 "
-            "G5.2 F#5.2 E5.4 B4.2 E5.2 G5.4   E5.4 D5.2 C5.2 D5.8 "
-            "B4.2 D5.2 G5.4 A5.2 B5.2 D6.4    C6.4 B5.2 A5.2 F#5.8 "
-            "G5.4 A5.2 B5.2 E5.4 G5.4         A5.6 G5.2 E5.2 D5.6 "
-            "E5.4 G5.4 C6.4 B5.4              A5.4 F#5.4 D5.4 A5.4 "
-            "B5.6 A5.2 F#5.4 D5.4             G5.4 F#5.4 E5.4 B4.4 "
-            "C5.2 E5.2 G5.4 C6.4 B5.2 A5.2    B5.4 A5.4 F#5.4 D5.4 "
-            "G5.6 A5.2 B5.4 D6.4              C6.4 B5.4 A5.4 F#5.4")
-    song.melody(lead, 0.24, duty=0.5, decay=2.0, sustain=0.6, vibrato=0.15)
-    # подголосок на терцию ниже (по ладу соль мажор) на втором голосе
-    harmony = [(None if n is None else n - (3 if (n % 12) in (11, 4, 6) else 4), s) for n, s in parse(lead)]
-    step = 0
-    for note, steps in harmony:
-        if note is not None:
-            song.pulse(step, steps, note, 0.09, duty=0.25, decay=2.0, sustain=0.5)
-        step += steps
-    for bar, name in enumerate(chords):
-        notes = chord(name)
-        root = notes[0] if notes[0] < 55 else notes[0] - 12
-        base = bar * 16
-        # бас прыгает «корень — квинта» четвертями с проходящей восьмой
-        for i, off in enumerate((0, 7, 12, 7)):
-            song.triangle(base + i * 4, 3, root - 12 + off, 0.34, gate=0.85)
-        song.triangle(base + 14, 2, root - 12 + 4 if notes[1] - notes[0] == 4 else root - 12 + 3, 0.3, gate=0.8)
-        # бодрые ударные: бочка на 1 и 3, «малый» из шума на 2 и 4, хэт восьмыми
-        for i in (0, 8, 10):
-            song.kick(base + i, 0.4)
-        for i in (4, 12):
-            song.noise(base + i, 0.12, 0.16, rate=6000)
-        for i in range(0, 16, 2):
-            song.noise(base + i, 0.03, 0.05, rate=15000, short=i % 4 == 2)
-    song.write("music_sunset.wav")
-
-
-# --- Над облаками: тихая и спокойная, фа мажор с лидийским си ---
-
-def clouds():
-    chords = "F G Em Am F G C C Dm Em F G F G Em Am".split()
-    song = Song(bpm=76, bars=len(chords))
-    lead = ("C5.4 F5.4 A5.8     B5.8 A5.4 G5.4     G5.12 E5.4        A5.16 "
-            "C6.8 A5.4 F5.4     D6.8 B5.4 G5.4     E6.12 D6.4        C6.16 "
-            "A5.4 F5.4 D5.8     B5.4 G5.4 E5.8     C6.4 A5.4 F5.4 A5.4   B5.12 D6.4 "
-            "C6.8 A5.8          B5.8 G5.8          E5.8 G5.4 B5.4    A5.16")
-    # мягкий голос и эхо — второй голос повторяет мелодию на три шестнадцатых позже и тише
-    song.melody(lead, 0.17, echo=(3, 0.4), duty=0.5, gate=0.97, decay=1.2, sustain=0.45, vibrato=0.12)
-    for bar, name in enumerate(chords):
-        notes = chord(name)
-        root = notes[0] if notes[0] < 53 else notes[0] - 12
-        third, fifth = root + notes[1] - notes[0], root + 7
-        base = bar * 16
-        # «арфа» треугольником: неторопливое ломаное трезвучие восьмыми
-        for i, note in enumerate((root - 12, fifth - 12, root, third, fifth, third, root, fifth - 12)):
-            song.triangle(base + i * 2, 2, note, 0.26, gate=0.9)
-        # вместо ударных — едва слышный ветер раз в два такта
-        if bar % 2 == 0:
-            song.noise(base, 3.0, 0.025, rate=1800, swell=True)
-    song.write("music_clouds.wav")
-
-
-# --- Звёздная бездна: космос, ми минор и далёкие аккорды ---
-
-def space():
-    chords = "Em Em C C Am Am B B Em Cm Em Cm Ab Ab B B".split()
-    song = Song(bpm=92, bars=len(chords))
-    lead = ("B4.8 E5.4 G5.4      F#5.8 E5.4 B4.4     C5.8 E5.4 G5.4     B5.12 G5.4 "
-            "A5.8 C6.4 E6.4      D6.8 C6.4 B5.4      D#6.8 F#5.4 A5.4   B5.16 "
-            "G5.8 B5.4 E6.4      Eb6.8 D6.4 C6.4     B5.8 G5.4 E5.4     G5.8 Eb5.4 C5.4 "
-            "C6.8 Eb6.4 Ab5.4    G5.8 Eb5.4 C5.4     D#5.8 F#5.4 B5.4   A5.4 F#5.4 D#5.8")
-    # голос с глубоким вибрато и подъездом к ноте — «инопланетный» звук
-    step, previous = 0, None
-    for note, steps in parse(lead):
-        if note is not None:
-            song.pulse(step, steps, note, 0.2, duty=0.25, gate=0.95, decay=1.0, sustain=0.6,
-                       vibrato=0.45, slide_from=previous)
-            previous = note
-        step += steps
-    rng = random.Random(7)
-    for bar, name in enumerate(chords):
-        notes = chord(name)
-        root = notes[0] if notes[0] < 52 else notes[0] - 12
-        base = bar * 16
-        # мерцающее арпеджио вверх-вниз на две октавы — звёзды
-        tones = [n + 12 * o for o in (1, 2) for n in notes[:3]]
-        arp = tones + tones[-2:0:-1]
-        for i in range(16):
-            song.pulse(base + i, 1, arp[(bar * 16 + i) % len(arp)], 0.07, duty=0.125, gate=0.6,
-                       decay=10, sustain=0.2)
-        # низкий гул: длинная нота и её октава
-        song.triangle(base, 12, root - 12, 0.32)
-        song.triangle(base + 12, 4, root, 0.28, gate=0.9)
-        # редкие «сигналы» высоко-высоко и космический шорох
-        if bar % 2 == 1:
-            song.pulse(base + 14, 1, notes[0] + 48, 0.05, duty=0.5, gate=0.5, decay=12, sustain=0.1)
-        song.noise(base + rng.choice((4, 8, 12)), 0.04, 0.035, rate=18000, short=True)
-        if bar % 4 == 0:
-            song.noise(base, 4.0, 0.03, rate=900, swell=True)
-    song.write("music_space.wav")
-
-
 valley()
-sunset()
-clouds()
-space()
 print("Готово:", ASSETS)
