@@ -2,9 +2,11 @@
 
 Чем выше поднимается Сларк, тем сильнее меняется мир:
     0 м      — Долина замка: сумерки, средневековый замок на холме, река, деревушка, туман, лес
-    250 м    — Кровавый закат: огромное красное солнце, облака в огне, вороны
-    600 м    — Над облаками: море облаков внизу, лунная ночь
-    1000 м   — Звёздная бездна: звёзды, туманности, планеты
+    180 м    — Вулканические земли: лава, пепел, обломки пород, красное свечение
+    350 м    — Кровавый закат: огромное красное солнце, облака в огне, вороны
+    650 м    — Ледяные пики: снежные горы, северное сияние, ледники
+    900 м    — Над облаками: море облаков внизу, лунная ночь
+    1200 м   — Звёздная бездна: звёзды, туманности, планеты
 Небо рисуется полосами с «шахматными» переходами, всё остальное — без сглаживания, пиксель к пикселю.
 Дальние слои едут вниз медленнее ближних — так получается глубина (параллакс).
 """
@@ -16,23 +18,31 @@ import pygame
 from common import WIDTH, HEIGHT, small_font, big_font
 
 PIXELS_PER_METER = 20
-TRANSITION = 80   # за сколько метров одна зона перетекает в другую
+TRANSITION = 70   # за сколько метров одна зона перетекает в другую
 SKY_BANDS = 16    # на сколько полос делится небо
 
 BIOMES = [
     {"name": "Долина замка", "id": "valley", "from": 0,
      "top": (16, 18, 46), "bottom": (104, 74, 122), "stars": 0.35, "clouds": 0.22,
      "cloud": ((42, 36, 68), (62, 54, 94), (88, 78, 122))},
-    {"name": "Кровавый закат", "id": "sunset", "from": 250,
+    {"name": "Вулканические земли", "id": "volcano", "from": 180,
+     "top": (60, 20, 10), "bottom": (180, 60, 20), "stars": 0.0, "clouds": 0.0,
+     "cloud": ((80, 30, 10), (120, 50, 20), (160, 70, 30))},
+    {"name": "Кровавый закат", "id": "sunset", "from": 350,
      "top": (54, 22, 60), "bottom": (242, 118, 66), "stars": 0.0, "clouds": 0.55,
      "cloud": ((104, 36, 58), (190, 84, 66), (250, 158, 88))},
-    {"name": "Над облаками", "id": "clouds", "from": 600,
+    {"name": "Ледяные пики", "id": "ice", "from": 650,
+     "top": (10, 20, 50), "bottom": (80, 120, 180), "stars": 0.5, "clouds": 0.3,
+     "cloud": ((140, 170, 220), (180, 200, 240), (220, 235, 255))},
+    {"name": "Над облаками", "id": "clouds", "from": 900,
      "top": (22, 30, 76), "bottom": (130, 150, 204), "stars": 0.3, "clouds": 1.0,
      "cloud": ((112, 122, 176), (164, 176, 220), (224, 230, 250))},
-    {"name": "Звёздная бездна", "id": "space", "from": 1000,
+    {"name": "Звёздная бездна", "id": "space", "from": 1200,
      "top": (4, 2, 14), "bottom": (30, 14, 58), "stars": 1.0, "clouds": 0.0,
      "cloud": ((44, 30, 78), (66, 46, 108), (96, 70, 140))},
 ]
+
+BIOME = {b["id"]: b for b in BIOMES}   # ищем зону по id, а не по номеру: номера сдвигаются с каждой новой зоной
 
 
 def lerp(a, b, t):
@@ -347,6 +357,94 @@ def make_planet(rng, radius):
     return surf
 
 
+def make_volcano():
+    """Вулканический пейзаж: лава, пепел, обломки пород."""
+    w, h = WIDTH, 240
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    rng = random.Random(42)
+    # лава внизу
+    lava = []
+    for x in range(0, w + 1, 6):
+        y = 180 + math.sin(x / 50) * 15 + math.sin(x / 23) * 8
+        lava.append((x, y))
+    lava.append((w, h))
+    lava.append((0, h))
+    pygame.draw.polygon(surf, (180, 60, 20), lava)
+    # блики на лаве
+    for _ in range(30):
+        x = rng.randint(0, w)
+        y = rng.randint(170, h - 10)
+        pygame.draw.rect(surf, (255, 140, 40), (x, y, rng.randint(4, 12), 2))
+    # обломки пород
+    for _ in range(40):
+        x = rng.randint(0, w)
+        y = rng.randint(100, 180)
+        size = rng.randint(3, 8)
+        pygame.draw.polygon(surf, (60, 40, 35), [(x, y), (x + size, y - 2), (x + size + 2, y + 3), (x - 2, y + 4)])
+    # пепел
+    for _ in range(60):
+        x = rng.randint(0, w)
+        y = rng.randint(0, h)
+        pygame.draw.rect(surf, (100, 80, 70), (x, y, 2, 2))
+    return surf
+
+
+def make_ice_mountains():
+    """Ледяные пики: снежные горы, ледники."""
+    w, h = WIDTH, 240
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    rng = random.Random(77)
+    # ледяные горы
+    for seed, tone in [(10, (100, 140, 200)), (20, (130, 170, 220))]:
+        r = random.Random(seed)
+        points = [(0, h)]
+        phase = r.uniform(0, 6)
+        for x in range(0, w + 1, 8):
+            y = 80 + math.sin(x / 80 + phase) * 40 + math.sin(x / 35) * 15
+            points.append((x, y))
+        points.append((w, h))
+        pygame.draw.polygon(surf, tone, points)
+    # снежные шапки
+    for x in range(0, w, 8):
+        y = 80 + math.sin(x / 80) * 40 + math.sin(x / 35) * 15
+        if y < 120:
+            pygame.draw.rect(surf, (220, 235, 255), (x, y, 8, 6))
+    # ледяные кристаллы
+    for _ in range(25):
+        x = rng.randint(0, w)
+        y = rng.randint(120, h - 20)
+        h2 = rng.randint(15, 35)
+        pygame.draw.polygon(surf, (160, 200, 240), [(x, y), (x + 3, y - h2), (x + 6, y)])
+    return surf
+
+
+def make_aurora():
+    """Северное сияние."""
+    w, h = WIDTH, HEIGHT
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    for i in range(3):
+        y = 50 + i * 30
+        for x in range(0, w, 4):
+            alpha = int(40 * math.sin(x / 100 + i) * math.sin(x / 60 + i * 2))
+            if alpha > 0:
+                color = (50 + i * 30, 200 + i * 20, 150 + i * 20, alpha)
+                pygame.draw.rect(surf, color, (x, y, 4, 3))
+    return surf
+
+
+def make_ice_cloud_sea():
+    """Море ледяных облаков."""
+    surf = pygame.Surface((WIDTH, 200), pygame.SRCALPHA)
+    rng = random.Random(99)
+    for _ in range(15):
+        x = rng.randint(-100, WIDTH)
+        y = rng.randint(20, 100)
+        w = rng.randint(100, 200)
+        h = rng.randint(30, 60)
+        pygame.draw.ellipse(surf, (180, 200, 230), (x, y, w, h))
+    return surf
+
+
 class Background:
     def __init__(self, lookahead=0):
         rng = random.Random(5)
@@ -362,10 +460,18 @@ class Background:
             (make_valley(), 0.17, HEIGHT - 205),
             (make_forest(8, 30, 110, 180, (12, 14, 24), (30, 32, 52)), 0.4, HEIGHT - 150),
         ]
+        # вулкан
+        self.volcano = make_volcano()
+        self.lava_glow = pygame.Surface((15, 15))
+        pygame.draw.circle(self.lava_glow, (255, 140, 40, 200), (7, 7), 7)
+        # лед
+        self.ice_mountains = make_ice_mountains()
+        self.aurora = make_aurora()
+        self.ice_cloud_sea = make_ice_cloud_sea()
         self.moon = make_moon()
         self.big_moon = pygame.transform.scale_by(make_moon((226, 232, 246)), 2)
         self.sun = make_sun()
-        self.cloud_sea = make_cloud_sea(random.Random(9), BIOMES[2]["cloud"])
+        self.cloud_sea = make_cloud_sea(random.Random(9), BIOME["clouds"]["cloud"])
         self.cloud_shapes = [make_cloud(rng, w) for w in (120, 160, 200, 240, 280)]
         self.cloud_layers = [{"factor": 0.25, "scale": 0.7, "clouds": [], "next": 0.0},
                              {"factor": 0.55, "scale": 1.0, "clouds": [], "next": 0.0}]
@@ -438,7 +544,7 @@ class Background:
 
     def update_space(self, climbed, height_m):
         f = 0.06
-        if weight(height_m, "space") > 0 or height_m > BIOMES[3]["from"] - 200:
+        if weight(height_m, "space") > 0 or height_m > BIOME["space"]["from"] - 200:
             while self.next_nebula < climbed * f + HEIGHT + 400 + self.lookahead:
                 self.next_nebula = max(self.next_nebula, climbed * f + HEIGHT) + random.uniform(250, 450)
                 rng = random.Random(random.random())
@@ -569,6 +675,25 @@ class Background:
                 if glow > 0.25:
                     self.firefly_glow.set_alpha(int(glow * 255))
                     surf.blit(self.firefly_glow, (int(x) - 4, int(y) - 4 + oy), special_flags=pygame.BLEND_RGB_ADD)
+
+        # вулкан: лава внизу, пепел в воздухе
+        volcano = weight(height_m, "volcano")
+        if volcano > 0.05:
+            self.draw_faded(surf, self.volcano, (0, HEIGHT - 240 + oy), volcano)
+            # свечение лавы
+            for _ in range(5):
+                x = WIDTH // 2 + math.sin(self.time * 2 + _) * 200
+                y = HEIGHT - 180 + math.sin(self.time * 3 + _) * 20 + oy
+                self.lava_glow.set_alpha(int(80 * volcano))
+                surf.blit(self.lava_glow, (int(x) - 7, int(y) - 7))
+
+        # ледяные пики: горы, северное сияние, ледяное море
+        ice = weight(height_m, "ice")
+        if ice > 0.05:
+            self.draw_faded(surf, self.ice_mountains, (0, HEIGHT - 240 + oy), ice)
+            self.draw_faded(surf, self.aurora, (0, 0), ice * 0.6)
+            ice_sea_y = view_h - 150 + (1 - ice) * 160
+            self.draw_faded(surf, self.ice_cloud_sea, (0, ice_sea_y), ice)
 
     def draw_front(self, surf, climbed, oy=0):
         """То, что поверх игры: название новой зоны."""

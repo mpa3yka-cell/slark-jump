@@ -199,28 +199,33 @@ class JumpGame:
     def build_patterns(self):
         while self.top_y > -HEIGHT:
             h = self.height_at(self.top_y)
-            d = min(h / 1000, 1)  # сложность от 0 до 1
+            d = min(h / 1500, 1)  # сложность от 0 до 1, масштабируется по 6 зонам
+            biome = BIOMES[biome_index(h)]["id"]
             if h < 15:
                 self.pattern_single(d)
                 continue
             danger = 1 if h > SAFE_HEIGHT else 0
+            # веса паттернов зависят от биома
+            biome_mod = {"volcano": 1.3, "ice": 0.8, "space": 1.5}.get(biome, 1.0)
             patterns = [
-                (self.pattern_single, 5),
-                (self.pattern_staircase, 2),
-                (self.pattern_trampoline, 0.8),
-                (self.pattern_moving_chain, 0.4 + 2 * d),
-                (self.pattern_elevator, 0.3 + 1.5 * d),
-                (self.pattern_vanishing, 0.3 + 1.5 * d),
-                (self.pattern_bridge, 1.5 * danger),
-                (self.pattern_minefield, (0.4 + 2 * d) * danger),
-                (self.pattern_familiar, (0.4 + 1.5 * d) * danger),
+                (self.pattern_single, 4 * biome_mod),
+                (self.pattern_staircase, 2.5 * biome_mod),
+                (self.pattern_trampoline, 0.8 * biome_mod),
+                (self.pattern_moving_chain, (0.5 + 2.5 * d) * biome_mod),
+                (self.pattern_elevator, (0.4 + 1.8 * d) * biome_mod),
+                (self.pattern_vanishing, (0.4 + 1.8 * d) * biome_mod),
+                (self.pattern_bridge, 2 * danger * biome_mod),
+                (self.pattern_minefield, (0.5 + 2.5 * d) * danger * biome_mod),
+                (self.pattern_familiar, (0.5 + 1.8 * d) * danger * biome_mod),
+                (self.pattern_double, 0.8 * biome_mod),
+                (self.pattern_spike_field, 0.6 * danger * biome_mod),
             ]
             functions, weights = zip(*patterns)
-            self.rng.choices(functions, weights)[0](d)
+            self.rng.choices(functions, weights)[0](d, biome)
 
     # --- структуры ---
 
-    def pattern_single(self, d):
+    def pattern_single(self, d, biome=None):
         """Одна платформа, иногда движущаяся, иногда с бонусом и обманкой рядом."""
         rng = self.rng
         x, y = self.place_next(rng.randint(MIN_GAP, self.max_gap(d)))
@@ -230,64 +235,62 @@ class JumpGame:
             fake_x = (x + rng.randint(200, WIDTH - 200)) % (WIDTH - PLATFORM_W)
             self.add_platform(fake_x, y + rng.randint(-25, 25), "breaking")
 
-    def pattern_staircase(self, d):
+    def pattern_staircase(self, d, biome=None):
         """Лестница: несколько платформ подряд, шагающих в одну сторону."""
         rng = self.rng
         direction = rng.choice((-1, 1))
-        steps = rng.randint(4, 6)
+        steps = rng.randint(4, 7)
         for i in range(steps):
-            x = self.last_x + direction * rng.randint(90, 150)
+            x = self.last_x + direction * rng.randint(90, 160)
             if not 0 <= x <= WIDTH - PLATFORM_W:
                 direction = -direction
-                x = self.last_x + direction * rng.randint(90, 150)
+                x = self.last_x + direction * rng.randint(90, 160)
             x = clamp(x, 0, WIDTH - PLATFORM_W)
-            # последняя ступенька всегда обычная — с неё можно прыгать сколько угодно
             kind = "vanishing" if i < steps - 1 and rng.random() < 0.25 * d else "normal"
-            self.add_path(x, self.top_y - rng.randint(60, 95), kind)
+            self.add_path(x, self.top_y - rng.randint(55, 100), kind)
 
-    def pattern_bridge(self, d):
+    def pattern_bridge(self, d, biome=None):
         """Широкий мост, по которому ходит крип. Прыгните на него сверху!"""
         width = self.rng.choice(BRIDGE_WIDTHS)
         x, y = self.place_next(self.rng.randint(70, 115), dx_max=150, width=width)
         bridge = self.add_path(x, y, "normal", width=width)
         self.add_creep(bridge, d)
 
-    def pattern_moving_chain(self, d):
+    def pattern_moving_chain(self, d, biome=None):
         """Цепочка платформ, которые ездят навстречу друг другу."""
         rng = self.rng
-        speed = rng.uniform(1.5, 2.2 + d)
+        speed = rng.uniform(1.5, 2.5 + d)
         direction = rng.choice((-1, 1))
-        for _ in range(rng.randint(3, 4)):
+        for _ in range(rng.randint(3, 5)):
             x, y = self.place_next(rng.randint(70, 110), dx_max=160)
-            platform = self.add_path(x, y, "moving", move_range=rng.randint(90, 150))
+            platform = self.add_path(x, y, "moving", move_range=rng.randint(90, 160))
             span = platform["max_x"] - platform["min_x"]
             offset = x - platform["min_x"]
             platform["speed"] = speed
             platform["start"] = offset if direction > 0 else 2 * span - offset
             direction = -direction
 
-    def pattern_elevator(self, d):
+    def pattern_elevator(self, d, biome=None):
         """Лифт: платформа ездит вверх-вниз. Следующая платформа — над его верхней точкой."""
         rng = self.rng
-        amplitude = rng.randint(50, 80)
+        amplitude = rng.randint(50, 90)
         x, _ = self.place_next(0, dx_max=180)
         lowest = self.top_y - rng.randint(70, MAX_GAP - 10)
         center = lowest - amplitude
         self.add_platform(x, center, "elevator", move_range=amplitude)
         self.last_x = x
-        self.top_y = center - amplitude + 15  # от верхней точки — с небольшим запасом
+        self.top_y = center - amplitude + 15
 
-    def pattern_vanishing(self, d):
+    def pattern_vanishing(self, d, biome=None):
         """Исчезающие платформы: на каждую можно прыгнуть только один раз."""
         rng = self.rng
-        for _ in range(rng.randint(3, 5)):
+        for _ in range(rng.randint(3, 6)):
             x, y = self.place_next(rng.randint(60, 100), dx_max=180)
             self.add_path(x, y, "vanishing")
-        # в конце — обычная платформа: после неё может быть лифт, которого нужно дождаться
         x, y = self.place_next(rng.randint(60, 100), dx_max=180)
         self.add_path(x, y, "normal")
 
-    def pattern_trampoline(self, d):
+    def pattern_trampoline(self, d, biome=None):
         """Батут подбрасывает очень высоко, а по пути могут висеть мины."""
         rng = self.rng
         x, y = self.place_next(rng.randint(60, 110), dx_max=180)
@@ -295,7 +298,7 @@ class JumpGame:
         big_gap = rng.randint(260, SPRING_GAP)
         if self.height_at(y) > SAFE_HEIGHT:
             center = x + PLATFORM_W / 2
-            for _ in range(rng.randint(1, 3)):
+            for _ in range(rng.randint(1, 4)):
                 side = rng.choice((-1, 1))
                 mx = center + side * rng.randint(170, 320)
                 if not 25 <= mx <= WIDTH - 25:
@@ -304,10 +307,11 @@ class JumpGame:
         x2, y2 = self.place_next(big_gap, dx_max=200)
         self.add_path(x2, y2, "normal", bonus=self.random_bonus())
 
-    def pattern_minefield(self, d):
+    def pattern_minefield(self, d, biome=None):
         """Несколько платформ, а сбоку от каждой — мина."""
         rng = self.rng
-        for _ in range(3):
+        count = 3 + int(d * 2)
+        for _ in range(count):
             x, y = self.place_next(rng.randint(70, self.max_gap(d)))
             self.add_path(x, y, "normal")
             center = x + PLATFORM_W / 2
@@ -317,10 +321,33 @@ class JumpGame:
                 mx = center - side * rng.randint(170, 300)
             self.add_mine(clamp(mx, 25, WIDTH - 25), y - rng.randint(60, 110))
 
-    def pattern_familiar(self, d):
+    def pattern_familiar(self, d, biome=None):
         """Обычная платформа, а над ней пролетает горгулья."""
-        self.pattern_single(d)
+        self.pattern_single(d, biome)
         self.add_familiar(self.top_y - self.rng.randint(50, 100), d)
+
+    def pattern_double(self, d, biome=None):
+        """Две параллельные платформы на разной высоте: одна обычная, одна движущаяся выше."""
+        rng = self.rng
+        x, y = self.place_next(rng.randint(MIN_GAP, self.max_gap(d)))
+        self.add_path(x, y, "normal", bonus=self.random_bonus())
+        # вторая платформа выше и сбоку — запасной путь
+        x2 = clamp(x + rng.choice([-100, 100]), 0, WIDTH - PLATFORM_W)
+        y2 = y - rng.randint(20, 50)
+        self.add_platform(x2, y2, "moving", move_range=rng.randint(60, 120))
+
+    def pattern_spike_field(self, d, biome=None):
+        """Поле из ломающихся платформ с минами: но каждая вторая — обычная для запаса."""
+        rng = self.rng
+        count = 2 + int(d * 2)
+        for i in range(count):
+            x, y = self.place_next(rng.randint(MIN_GAP, self.max_gap(d) - 10))
+            # каждая вторая платформа обычная — запасной путь
+            kind = "normal" if i % 2 == 0 else "breaking"
+            self.add_path(x, y, kind)
+            # мина над ломающейся платформой — чтобы не стояли на ней
+            if kind == "breaking" and rng.random() < 0.5:
+                self.add_mine(x + PLATFORM_W / 2, y - rng.randint(50, 90))
 
     # --- враги ---
 
@@ -951,7 +978,7 @@ def outlined_text(text, fnt, color):
 
 def prepare_platforms():
     """Картинки всех платформ готовим при запуске — чтобы игра не подтормаживала, встречая новую."""
-    for biome in ("valley", "sunset", "clouds", "space"):
+    for biome in ("valley", "volcano", "sunset", "ice", "clouds", "space"):
         for kind in ("normal", "moving", "elevator", "breaking", "vanishing", "trampoline"):
             art.platform(kind, biome, PLATFORM_W)
         for width in BRIDGE_WIDTHS:

@@ -2,8 +2,8 @@
 # Используется в build_exe.bat. При выпуске новой версии поменяйте номера здесь и в common.py (VERSION).
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 1, 0, 0),
-    prodvers=(1, 1, 0, 0),
+    filevers=(1, 1, 1, 0),
+    prodvers=(1, 1, 1, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,12 +16,12 @@ VSVersionInfo(
       StringTable('041904B0', [
         StringStruct('CompanyName', 'mpa3yka-cell'),
         StringStruct('FileDescription', 'Прыжки Сларка — пиксельная прыгалка'),
-        StringStruct('FileVersion', '1.1.0'),
+        StringStruct('FileVersion', '1.1.1'),
         StringStruct('InternalName', 'SlarkJump'),
         StringStruct('LegalCopyright', 'Фан-игра. Сларк — персонаж Dota 2, права у Valve Corporation'),
         StringStruct('OriginalFilename', 'SlarkJump.exe'),
         StringStruct('ProductName', 'Прыжки Сларка'),
-        StringStruct('ProductVersion', '1.1.0')
+        StringStruct('ProductVersion', '1.1.1')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [1049, 1200])])
