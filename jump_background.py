@@ -394,21 +394,16 @@ def make_ice_mountains():
     w, h = WIDTH, 240
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     rng = random.Random(77)
-    # ледяные горы
+    # ледяные горы: дальний хребет темнее, ближний светлее
     for seed, tone in [(10, (100, 140, 200)), (20, (130, 170, 220))]:
         r = random.Random(seed)
-        points = [(0, h)]
         phase = r.uniform(0, 6)
-        for x in range(0, w + 1, 8):
-            y = 80 + math.sin(x / 80 + phase) * 40 + math.sin(x / 35) * 15
-            points.append((x, y))
-        points.append((w, h))
-        pygame.draw.polygon(surf, tone, points)
-    # снежные шапки
-    for x in range(0, w, 8):
-        y = 80 + math.sin(x / 80) * 40 + math.sin(x / 35) * 15
-        if y < 120:
-            pygame.draw.rect(surf, (220, 235, 255), (x, y, 8, 6))
+        ridge = [(x, 80 + math.sin(x / 80 + phase) * 40 + math.sin(x / 35) * 15) for x in range(0, w + 1, 8)]
+        pygame.draw.polygon(surf, tone, [(0, h)] + ridge + [(w, h)])
+        # снежные шапки — полоса по тому же гребню, только у вершин
+        for (x0, y0), (x1, y1) in zip(ridge, ridge[1:]):
+            if min(y0, y1) < 75:
+                pygame.draw.polygon(surf, (220, 235, 255), [(x0, y0), (x1, y1), (x1, y1 + 6), (x0, y0 + 6)])
     # ледяные кристаллы
     for _ in range(25):
         x = rng.randint(0, w)
@@ -462,8 +457,9 @@ class Background:
         ]
         # вулкан
         self.volcano = make_volcano()
-        self.lava_glow = pygame.Surface((15, 15))
-        pygame.draw.circle(self.lava_glow, (255, 140, 40, 200), (7, 7), 7)
+        self.lava_glow = pygame.Surface((15, 15))   # чёрный фон: рисуется «добавлением света», как светлячки
+        pygame.draw.circle(self.lava_glow, (110, 44, 8), (7, 7), 7)
+        pygame.draw.circle(self.lava_glow, (200, 96, 24), (7, 7), 3)
         # лед
         self.ice_mountains = make_ice_mountains()
         self.aurora = make_aurora()
@@ -685,7 +681,7 @@ class Background:
                 x = WIDTH // 2 + math.sin(self.time * 2 + _) * 200
                 y = HEIGHT - 180 + math.sin(self.time * 3 + _) * 20 + oy
                 self.lava_glow.set_alpha(int(80 * volcano))
-                surf.blit(self.lava_glow, (int(x) - 7, int(y) - 7))
+                surf.blit(self.lava_glow, (int(x) - 7, int(y) - 7), special_flags=pygame.BLEND_RGB_ADD)
 
         # ледяные пики: горы, северное сияние, ледяное море
         ice = weight(height_m, "ice")

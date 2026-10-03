@@ -16,11 +16,11 @@ if not exist ".venv" (
     )
 )
 
-rem --- Install/upgrade PyInstaller in the venv ---
-echo Installing PyInstaller...
-.venv\Scripts\python.exe -m pip install --upgrade pip pyinstaller --no-warn-script-location
+rem --- Install the game requirements and PyInstaller in the venv ---
+echo Installing requirements and PyInstaller...
+.venv\Scripts\python.exe -m pip install --upgrade pip pyinstaller -r requirements.txt --no-warn-script-location
 if errorlevel 1 (
-    echo ERROR: Failed to install PyInstaller.
+    echo ERROR: Failed to install requirements or PyInstaller.
     pause
     exit /b 1
 )
@@ -34,17 +34,6 @@ echo Building executable...
   --workpath "%TEMP%\slarkjump_build" --specpath "%~dp0build_temp" ^
   --distpath "%~dp0dist" main.py
 if errorlevel 1 goto :clean_fail
-
-rem --- Copy pygame into the bundle ---
-rem Tests, docs, examples and caches add ~8 MB and are useless at runtime, so skip them.
-echo Copying pygame...
-set PYGAME_DIR=%~dp0.venv\Lib\site-packages\pygame
-if exist "%PYGAME_DIR%" (
-    xcopy /E /I /Y /XD tests docs examples __pycache__ /XF *.pyc *.pyi "%PYGAME_DIR%" "dist\SlarkJump\_internal\pygame" >nul
-    echo pygame copied successfully
-) else (
-    echo WARNING: pygame directory not found at %PYGAME_DIR%
-)
 
 rem --- Copy firewall helper ---
 copy /y allow_firewall.bat dist\SlarkJump\ >nul

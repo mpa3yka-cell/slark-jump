@@ -342,7 +342,7 @@ def draw_shadow_orb(pen, t):
 # --- Платформы ---
 
 PLATFORM_DRAW_H = 26        # картинка платформы выше её «ступени» (16 px): мох и цепи свисают
-TEXTURED = {"valley": 0.22, "sunset": 0.2, "clouds": 0.14, "space": 0.16}
+TEXTURED = {"valley": 0.22, "volcano": 0.2, "sunset": 0.2, "ice": 0.12, "clouds": 0.14, "space": 0.16}
 
 
 def draw_platform(pen, kind, biome, w):
@@ -390,6 +390,28 @@ def draw_platform(pen, kind, biome, w):
             pen.circle((80, 98, 50) if x % 12 else (110, 126, 64), x, 2 + (x * 7 % 3) * 0.6, 2.4)
         for x in range(7, int(w) - 4, 17):
             pen.line((56, 74, 38), (x, h - 1), (x + (x % 3) - 1, h + 5 + x % 4), 1.3)
+    elif biome == "volcano":
+        # застывший базальт: тёмные глыбы, между ними светятся трещины с лавой
+        pen.rect((40, 28, 26), 0, 3, w, h - 3, 3)
+        for x in range(0, int(w), 15):
+            pen.rect((66, 46, 40) if x // 15 % 2 else (56, 38, 34), x + 1, 4, 13, h - 7, 2)
+        for x in range(15, int(w) - 4, 15):
+            pen.line((240, 110, 30), (x, 5), (x - 1 + x % 3, h - 3), 1.2)
+        pen.rect((90, 66, 56), 0, 3, w, 2, 1)
+        for x in range(9, int(w) - 6, 23):
+            pen.polygon((220, 90, 20), [(x, h - 1), (x + 2, h + 4 + x % 3), (x + 4, h - 1)])
+            pen.circle((255, 170, 60), x + 2, h, 1)
+    elif biome == "ice":
+        # глыба льда: снег сверху, блики на гранях, снизу сосульки
+        pen.rect((96, 146, 200), 0, 3, w, h - 4, 3)
+        pen.rect((140, 190, 232), 0, 6, w, 5, 1)
+        for x in range(10, int(w) - 8, 21):
+            pen.line((210, 236, 255), (x, 7), (x + 5, 12), 1)
+        pen.rect((232, 242, 255), 0, 1, w, 5, 3)
+        for x in range(3, int(w), 7):
+            pen.circle((246, 250, 255), x, 2 + (x * 5 % 3) * 0.5, 2)
+        for x in range(6, int(w) - 4, 12):
+            pen.polygon((170, 212, 245), [(x, h - 2), (x + 2, h + 3 + x % 4), (x + 4, h - 2)])
     elif biome == "sunset":
         # тёмная балка: доски, железные скобы с заклёпками, снизу цепи
         pen.rect((48, 28, 22), 0, 3, w, h - 4, 2)
