@@ -199,14 +199,14 @@ class JumpGame:
     def build_patterns(self):
         while self.top_y > -HEIGHT:
             h = self.height_at(self.top_y)
-            d = min(h / 1500, 1)  # сложность от 0 до 1, масштабируется по 6 зонам
+            d = min(h / BIOMES[-1]["from"], 1)  # сложность от 0 до 1, масштабируется по всем зонам
             biome = BIOMES[biome_index(h)]["id"]
             if h < 15:
                 self.pattern_single(d)
                 continue
             danger = 1 if h > SAFE_HEIGHT else 0
             # веса паттернов зависят от биома
-            biome_mod = {"volcano": 1.3, "ice": 0.8, "space": 1.5}.get(biome, 1.0)
+            biome_mod = {"mine": 1.3, "ice": 0.8, "space": 1.5}.get(biome, 1.0)
             patterns = [
                 (self.pattern_single, 4 * biome_mod),
                 (self.pattern_staircase, 2.5 * biome_mod),
@@ -978,7 +978,7 @@ def outlined_text(text, fnt, color):
 
 def prepare_platforms():
     """Картинки всех платформ готовим при запуске — чтобы игра не подтормаживала, встречая новую."""
-    for biome in ("valley", "volcano", "sunset", "ice", "clouds", "space"):
+    for biome in ("mantle", "mine", "valley", "sunset", "ice", "clouds", "space"):
         for kind in ("normal", "moving", "elevator", "breaking", "vanishing", "trampoline"):
             art.platform(kind, biome, PLATFORM_W)
         for width in BRIDGE_WIDTHS:

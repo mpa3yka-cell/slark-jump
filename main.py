@@ -311,7 +311,7 @@ while running:
     else:
         # фон меню: медленно поднимаемся сквозь все зоны и начинаем заново
         backdrop_climbed += 3
-        if backdrop_climbed > 1300 * PIXELS_PER_METER:
+        if backdrop_climbed > (BIOMES[-1]["from"] + 100) * PIXELS_PER_METER:
             backdrop_climbed = 0
             backdrop = Background()  # начинаем путь заново — облака и туманности строятся с нуля
         backdrop.update(backdrop_climbed)

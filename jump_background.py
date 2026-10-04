@@ -1,12 +1,13 @@
 """Фон «Прыжков Сларка» — пиксель-арт в стиле тёмного фэнтези: зоны по высоте и параллакс.
 
 Чем выше поднимается Сларк, тем сильнее меняется мир:
-    0 м      — Долина замка: сумерки, средневековый замок на холме, река, деревушка, туман, лес
-    180 м    — Вулканические земли: лава, пепел, обломки пород, красное свечение
-    350 м    — Кровавый закат: огромное красное солнце, облака в огне, вороны
-    650 м    — Ледяные пики: снежные горы, северное сияние, ледники
-    900 м    — Над облаками: море облаков внизу, лунная ночь
-    1200 м   — Звёздная бездна: звёзды, туманности, планеты
+    0 м      — В мантии земли: раскалённая порода, магма в трещинах, кристаллы, полная темнота
+    250 м    — Шахта: каменные стены, деревянные рамы, рельсы, фонари, рудные блёстки
+    500 м    — Долина замка: сумерки, средневековый замок на холме, река, деревушка, туман, лес
+    800 м    — Кровавый закат: огромное красное солнце, облака в огне, вороны
+    1150 м   — Ледяные пики: снежные горы, северное сияние, ледники
+    1500 м   — Над облаками: море облаков внизу, лунная ночь
+    1900 м   — Звёздная бездна: звёзды, туманности, планеты
 Небо рисуется полосами с «шахматными» переходами, всё остальное — без сглаживания, пиксель к пикселю.
 Дальние слои едут вниз медленнее ближних — так получается глубина (параллакс).
 """
@@ -22,27 +23,32 @@ TRANSITION = 70   # за сколько метров одна зона пере�
 SKY_BANDS = 16    # на сколько полос делится небо
 
 BIOMES = [
-    {"name": "Долина замка", "id": "valley", "from": 0,
+    {"name": "В мантии земли", "id": "mantle", "from": 0,
+     "top": (8, 6, 16), "bottom": (78, 28, 22), "stars": 0.0, "clouds": 0.0,
+     "cloud": ((54, 26, 24), (88, 36, 26), (124, 50, 32))},
+    {"name": "Шахта", "id": "mine", "from": 250,
+     "top": (16, 12, 16), "bottom": (74, 52, 36), "stars": 0.0, "clouds": 0.0,
+     "cloud": ((60, 44, 34), (88, 64, 44), (118, 88, 60))},
+    {"name": "Долина замка", "id": "valley", "from": 500,
      "top": (16, 18, 46), "bottom": (104, 74, 122), "stars": 0.35, "clouds": 0.22,
      "cloud": ((42, 36, 68), (62, 54, 94), (88, 78, 122))},
-    {"name": "Вулканические земли", "id": "volcano", "from": 180,
-     "top": (60, 20, 10), "bottom": (180, 60, 20), "stars": 0.0, "clouds": 0.0,
-     "cloud": ((80, 30, 10), (120, 50, 20), (160, 70, 30))},
-    {"name": "Кровавый закат", "id": "sunset", "from": 350,
+    {"name": "Кровавый закат", "id": "sunset", "from": 800,
      "top": (54, 22, 60), "bottom": (242, 118, 66), "stars": 0.0, "clouds": 0.55,
      "cloud": ((104, 36, 58), (190, 84, 66), (250, 158, 88))},
-    {"name": "Ледяные пики", "id": "ice", "from": 650,
+    {"name": "Ледяные пики", "id": "ice", "from": 1150,
      "top": (10, 20, 50), "bottom": (80, 120, 180), "stars": 0.5, "clouds": 0.3,
      "cloud": ((140, 170, 220), (180, 200, 240), (220, 235, 255))},
-    {"name": "Над облаками", "id": "clouds", "from": 900,
+    {"name": "Над облаками", "id": "clouds", "from": 1500,
      "top": (22, 30, 76), "bottom": (130, 150, 204), "stars": 0.3, "clouds": 1.0,
      "cloud": ((112, 122, 176), (164, 176, 220), (224, 230, 250))},
-    {"name": "Звёздная бездна", "id": "space", "from": 1200,
+    {"name": "Звёздная бездна", "id": "space", "from": 1900,
      "top": (4, 2, 14), "bottom": (30, 14, 58), "stars": 1.0, "clouds": 0.0,
      "cloud": ((44, 30, 78), (66, 46, 108), (96, 70, 140))},
 ]
 
 BIOME = {b["id"]: b for b in BIOMES}   # ищем зону по id, а не по номеру: номера сдвигаются с каждой новой зоной
+
+MINE_FRAMES = (96, 300, 512, 700)   # где стоят деревянные рамы в шахте — по ним же висят фонари
 
 
 def lerp(a, b, t):
@@ -85,6 +91,17 @@ def weight(height_m, biome_id):
     """Насколько «сильна» зона на этой высоте (от 0 до 1) — для луны, солнца, ворон."""
     a, b, t = biome_at(height_m)
     return (1 - t) * (a["id"] == biome_id) + t * (b["id"] == biome_id)
+
+
+def above_zone(height_m, biome_id):
+    """На сколько метров подъём ушёл выше начала зоны — для слоёв, которые едут вместе с камерой."""
+    return height_m - BIOME[biome_id]["from"]
+
+
+def body_y(height_m, start_m, end_m, near, far):
+    """Положение солнца или луны: от `near` до `far` пикселей ниже низа экрана между двумя высотами."""
+    t = max(0.0, min(1.0, (height_m - start_m) / max(1, end_m - start_m)))
+    return HEIGHT + lerp(near, far, t)
 
 
 # --- Пиксельные картинки фона ---
@@ -357,35 +374,101 @@ def make_planet(rng, radius):
     return surf
 
 
-def make_volcano():
-    """Вулканический пейзаж: лава, пепел, обломки пород."""
+def make_mantle():
+    """Мантия земли: слои раскалённой породы, магма в трещинах, кристаллы и пепел в воздухе."""
     w, h = WIDTH, 240
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
-    rng = random.Random(42)
-    # лава внизу
-    lava = []
-    for x in range(0, w + 1, 6):
-        y = 180 + math.sin(x / 50) * 15 + math.sin(x / 23) * 8
-        lava.append((x, y))
-    lava.append((w, h))
-    lava.append((0, h))
-    pygame.draw.polygon(surf, (180, 60, 20), lava)
-    # блики на лаве
-    for _ in range(30):
-        x = rng.randint(0, w)
-        y = rng.randint(170, h - 10)
-        pygame.draw.rect(surf, (255, 140, 40), (x, y, rng.randint(4, 12), 2))
-    # обломки пород
-    for _ in range(40):
-        x = rng.randint(0, w)
-        y = rng.randint(100, 180)
-        size = rng.randint(3, 8)
-        pygame.draw.polygon(surf, (60, 40, 35), [(x, y), (x + size, y - 2), (x + size + 2, y + 3), (x - 2, y + 4)])
+    rng = random.Random(31)
+    # три гряды породы: дальняя тёмная, средняя, ближняя тёплая
+    for seed, tone, base, amp in ((1, (34, 22, 30), 84, 10), (2, (58, 32, 38), 138, 18), (3, (86, 46, 44), 190, 24)):
+        phase = random.Random(seed).uniform(0, 6)
+        ridge = [(x, base + math.sin(x / 70 + phase) * amp + math.sin(x / 23) * 4) for x in range(0, w + 1, 8)]
+        pygame.draw.polygon(surf, tone, [(0, h)] + ridge + [(w, h)])
+        pygame.draw.lines(surf, tuple(min(255, c + 18) for c in tone), False, ridge, 2)
+    # магма в трещинах: тёмный разлом, внутри горячая нитка и капля на конце
+    for _ in range(8):
+        x, y = rng.randint(0, w), rng.randint(150, h - 20)
+        points = [(x, y)]
+        for _ in range(rng.randint(3, 6)):
+            points.append((points[-1][0] + rng.randint(-40, 40), points[-1][1] + rng.randint(-6, 12)))
+        pygame.draw.lines(surf, (96, 32, 20), False, points, 5)
+        pygame.draw.lines(surf, (188, 74, 26), False, points, 3)
+        pygame.draw.lines(surf, (255, 176, 70), False, points, 1)
+        pygame.draw.circle(surf, (255, 214, 120), points[-1], 2)
+    # кристаллы, торчащие из породы
+    for _ in range(16):
+        x, y = rng.randint(0, w), rng.randint(150, h - 40)
+        size = rng.randint(7, 17)
+        pygame.draw.polygon(surf, (70, 38, 92), [(x, y), (x + size // 2, y - size), (x + size, y), (x + size // 2, y + 3)])
+        pygame.draw.polygon(surf, (146, 96, 178), [(x + 1, y), (x + size // 2, y - size + 3), (x + size // 2, y + 1)])
+        pygame.draw.rect(surf, (216, 176, 240), (x + size // 2 - 1, y - size + 4, 2, 4))
     # пепел
-    for _ in range(60):
-        x = rng.randint(0, w)
-        y = rng.randint(0, h)
-        pygame.draw.rect(surf, (100, 80, 70), (x, y, 2, 2))
+    for _ in range(50):
+        pygame.draw.rect(surf, (96, 68, 62), (rng.randint(0, w), rng.randint(0, 140), 2, 2))
+    return surf
+
+
+def make_mine():
+    """Шахта: каменные стены, деревянные рамы с распорками, настил, рельсы и рудные блёстки."""
+    w, h = WIDTH, 240
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    rng = random.Random(53)
+    # стены шахты: неровный камень по краям, в центре — тёмный провал
+    for side in (0, 1):
+        limit = 74 if side == 0 else w - 74
+        points = [(limit, 0)]
+        for y in range(0, h + 20, 20):
+            points.append((limit + (-1 if side == 0 else 1) * rng.randint(0, 22), y))
+        points.append((limit, h))
+        tone = (36, 30, 32) if side == 0 else (28, 24, 26)
+        pygame.draw.polygon(surf, tone, points)
+        pygame.draw.lines(surf, (58, 48, 46), False, points[1:-1], 2)
+        # рудные жилы в стене — с тёплыми блёстками
+        for _ in range(9):
+            x = limit + (-1 if side == 0 else 1) * rng.randint(4, 60)
+            y = rng.randint(10, h - 20)
+            pygame.draw.circle(surf, (74, 64, 48), (x, y), rng.randint(4, 8))
+            pygame.draw.rect(surf, (210, 190, 116), (x + rng.randint(-5, 5), y + rng.randint(-4, 4), 2, 2))
+    # деревянные рамы: стойки, верхняя балка, раскосы
+    for x in MINE_FRAMES:
+        for dx in (0, 62):
+            pygame.draw.rect(surf, (74, 50, 32), (x + dx, 20, 12, h - 20))
+            pygame.draw.rect(surf, (108, 76, 46), (x + dx, 20, 4, h - 20))
+        pygame.draw.rect(surf, (88, 60, 38), (x - 4, 12, 92, 12))
+        pygame.draw.rect(surf, (120, 86, 54), (x - 4, 12, 92, 4))
+        pygame.draw.line(surf, (66, 44, 28), (x + 4, 30), (x + 26, 68), 4)
+        pygame.draw.line(surf, (66, 44, 28), (x + 70, 30), (x + 48, 68), 4)
+        # фонарь под балкой
+        pygame.draw.rect(surf, (46, 34, 24), (x + 20, 24, 9, 4))
+        pygame.draw.rect(surf, (255, 214, 130), (x + 21, 28, 7, 7))
+        pygame.draw.rect(surf, (86, 60, 34), (x + 20, 35, 9, 3))
+    # настил из досок с рельсами
+    pygame.draw.rect(surf, (78, 54, 34), (0, 198, w, h - 198))
+    for y in range(200, h, 8):
+        pygame.draw.rect(surf, (108, 78, 48), (0, y, w, 2))
+    for y in (214, 226):
+        pygame.draw.rect(surf, (140, 134, 140), (0, y, w, 2))
+    for x in range(0, w, 26):
+        pygame.draw.rect(surf, (52, 36, 24), (x, 210, 8, h - 210))
+    return surf
+
+
+def make_stalactites(seed):
+    """Сталактиты: зубья породы, свисающие с потолка пещеры."""
+    w, h = WIDTH, 80
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    rng = random.Random(seed)
+    pygame.draw.rect(surf, (46, 38, 50), (0, 0, w, 8))          # сам потолок
+    pygame.draw.rect(surf, (72, 62, 82), (0, 8, w, 2))          # его светлая кромка
+    x = -10
+    while x < w + 10:
+        length = rng.randint(14, 74)
+        width = rng.randint(12, 30)
+        tip = x + width // 2
+        pygame.draw.polygon(surf, (40, 33, 45), [(x, 6), (x + width, 6), (tip, length)])
+        pygame.draw.line(surf, (68, 58, 78), (x + 1, 7), (tip, length - 2), 2)   # свет сбоку
+        pygame.draw.line(surf, (22, 18, 28), (x + width - 1, 7), (tip, length), 2)  # тень
+        x += rng.randint(14, 38)
     return surf
 
 
@@ -455,11 +538,20 @@ class Background:
             (make_valley(), 0.17, HEIGHT - 205),
             (make_forest(8, 30, 110, 180, (12, 14, 24), (30, 32, 52)), 0.4, HEIGHT - 150),
         ]
-        # вулкан
-        self.volcano = make_volcano()
-        self.lava_glow = pygame.Surface((15, 15))   # чёрный фон: рисуется «добавлением света», как светлячки
-        pygame.draw.circle(self.lava_glow, (110, 44, 8), (7, 7), 7)
-        pygame.draw.circle(self.lava_glow, (200, 96, 24), (7, 7), 3)
+        # подземные зоны: порода с магмой, шахта, потолок пещеры
+        self.mantle = make_mantle()
+        self.mine_wall = make_mine()
+        self.stalactites = make_stalactites(17)
+        self.ember_glow = pygame.Surface((11, 11))   # чёрный фон: рисуется «добавлением света», как светлячки
+        pygame.draw.circle(self.ember_glow, (140, 46, 12), (5, 5), 5)
+        pygame.draw.circle(self.ember_glow, (255, 150, 50), (5, 5), 2)
+        self.lantern_glow = pygame.Surface((21, 21))
+        pygame.draw.circle(self.lantern_glow, (88, 56, 16), (10, 10), 10)
+        pygame.draw.circle(self.lantern_glow, (250, 196, 96), (10, 10), 4)
+        # искры из магмы и пыль в шахте
+        self.embers = [[rng.uniform(0, WIDTH), rng.uniform(0, HEIGHT), rng.uniform(0, 6)] for _ in range(30)]
+        self.dust = [[rng.uniform(0, WIDTH), rng.uniform(0, HEIGHT), rng.uniform(0, 6)] for _ in range(26)]
+        self.lanterns = [(x + 24, HEIGHT - 216, phase) for x, phase in zip(MINE_FRAMES, (0, 1.7, 3.1, 4.6))]
         # лед
         self.ice_mountains = make_ice_mountains()
         self.aurora = make_aurora()
@@ -504,6 +596,16 @@ class Background:
             raven[1] += math.sin(self.time * 2 + raven[3]) * 0.3
             if raven[0] > WIDTH + 30:
                 raven[0], raven[1] = random.uniform(-300, -30), random.uniform(60, 360)
+        for spark in self.embers:      # искры из магмы медленно поднимаются и гаснут вверху
+            spark[1] -= 0.3 + spark[2] * 0.05
+            spark[0] += math.sin(self.time + spark[2]) * 0.2
+            if spark[1] < -10:
+                spark[0], spark[1] = random.uniform(0, WIDTH), random.uniform(HEIGHT * 0.5, HEIGHT + 20)
+        for mote in self.dust:         # пыль в шахте плавает в свете фонарей
+            mote[0] += 0.15 + mote[2] * 0.03
+            mote[1] += math.sin(self.time * 0.7 + mote[2]) * 0.2
+            if mote[0] > WIDTH + 5:
+                mote[0], mote[1] = -5.0, random.uniform(0, HEIGHT)
 
         index = biome_index(height_m)
         if index != self.banner_index:
@@ -614,16 +716,17 @@ class Background:
             pygame.draw.line(surf, (255, 255, 255), (x, y), (x + 40, y - 17), 2)
 
         # луна над долиной (очень далеко — почти не двигается)
-        self.draw_faded(surf, self.moon, (90, 50 + climbed * 0.02 + oy * 0.5), weight(height_m, "valley"))
-        # кровавое солнце: выплывает сверху и медленно «садится» по мере подъёма
+        valley_shift = above_zone(height_m, "valley") * PIXELS_PER_METER
+        self.draw_faded(surf, self.moon, (90, 50 + valley_shift * 0.02 + oy * 0.5), weight(height_m, "valley"))
+        # кровавое солнце: выплывает снизу на границе зон и медленно «садится» по мере подъёма
         sunset = weight(height_m, "sunset")
         if sunset > 0.03:
-            sun_y = HEIGHT - (1180 - climbed * 0.14) + oy
+            sun_y = body_y(height_m, BIOME["sunset"]["from"], BIOME["clouds"]["from"], -200, 1340) + oy
             self.draw_faded(surf, self.sun, (WIDTH // 2 - 130, sun_y), sunset)
         # большая луна над облаками
         clouds = weight(height_m, "clouds")
         if clouds > 0.03:
-            moon_y = HEIGHT - (2200 - climbed * 0.12) + oy
+            moon_y = body_y(height_m, BIOME["clouds"]["from"], BIOME["space"]["from"], -40, 680) + oy
             self.draw_faded(surf, self.big_moon, (WIDTH - 300, moon_y), clouds)
 
         # туманности и планеты в космосе
@@ -643,7 +746,7 @@ class Background:
 
         # горы, замок, долина и лес — уезжают вниз, когда поднимаемся (дальние — медленнее)
         for image, factor, top in self.ground_layers:
-            y = top + climbed * factor + oy
+            y = top + valley_shift * factor + oy
             if y < view_h:
                 surf.blit(image, (0, y))
 
@@ -672,16 +775,30 @@ class Background:
                     self.firefly_glow.set_alpha(int(glow * 255))
                     surf.blit(self.firefly_glow, (int(x) - 4, int(y) - 4 + oy), special_flags=pygame.BLEND_RGB_ADD)
 
-        # вулкан: лава внизу, пепел в воздухе
-        volcano = weight(height_m, "volcano")
-        if volcano > 0.05:
-            self.draw_faded(surf, self.volcano, (0, HEIGHT - 240 + oy), volcano)
-            # свечение лавы
-            for _ in range(5):
-                x = WIDTH // 2 + math.sin(self.time * 2 + _) * 200
-                y = HEIGHT - 180 + math.sin(self.time * 3 + _) * 20 + oy
-                self.lava_glow.set_alpha(int(80 * volcano))
-                surf.blit(self.lava_glow, (int(x) - 7, int(y) - 7), special_flags=pygame.BLEND_RGB_ADD)
+        # мантия земли: раскалённая порода внизу, сталактиты наверху, искры из магмы
+        mantle = weight(height_m, "mantle")
+        if mantle > 0.05:
+            self.draw_faded(surf, self.mantle, (0, HEIGHT - 240 + oy), mantle)
+            roof_y = int(above_zone(height_m, "mantle") * PIXELS_PER_METER * 0.04) + oy
+            self.draw_faded(surf, self.stalactites, (0, roof_y), mantle * 0.9)
+            for x, y, phase in self.embers:
+                glow = mantle * (0.35 + 0.65 * math.sin(self.time * 2 + phase * 3))
+                if glow > 0.2:
+                    self.ember_glow.set_alpha(int(glow * 190))
+                    surf.blit(self.ember_glow, (int(x) - 5, int(y) - 5 + oy), special_flags=pygame.BLEND_RGB_ADD)
+
+        # шахта: стены с рамами и рельсами, потолок пещеры, фонари и пыль
+        mine = weight(height_m, "mine")
+        if mine > 0.05:
+            self.draw_faded(surf, self.mine_wall, (0, HEIGHT - 240 + oy), mine)
+            roof_y = int(above_zone(height_m, "mine") * PIXELS_PER_METER * 0.04) + oy
+            self.draw_faded(surf, self.stalactites, (0, roof_y), mine * 0.9)
+            for x, y, phase in self.lanterns:
+                flicker = 0.75 + 0.25 * math.sin(self.time * 7 + phase * 3)
+                self.lantern_glow.set_alpha(int(170 * mine * flicker))
+                surf.blit(self.lantern_glow, (int(x) - 10, int(y) - 10 + oy), special_flags=pygame.BLEND_RGB_ADD)
+            for x, y, _ in self.dust:
+                surf.set_at((int(x), int(y) + oy), lerp_color(self.sky_key[0], (206, 186, 150), mine * 0.7))
 
         # ледяные пики: горы, северное сияние, ледяное море
         ice = weight(height_m, "ice")
