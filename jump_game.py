@@ -122,13 +122,20 @@ class JumpGame:
 
     @property
     def height_m(self):
+        """Текущая высота: если Сларк падает ниже линии камеры, счётчик идёт вниз."""
+        fallen = max(0.0, self.y - CAMERA_LINE)
+        return max(0, int((self.climbed - fallen) / PIXELS_PER_METER))
+
+    @property
+    def peak_height_m(self):
+        """Максимальная высота за попытку — её и записываем в рекорды."""
         return int(self.climbed / PIXELS_PER_METER)
 
     def record(self):
-        return {"score": self.height_m}
+        return {"score": self.peak_height_m}
 
     def summary(self):
-        return f"Высота: {self.height_m} м"
+        return f"Высота: {self.peak_height_m} м"
 
     # --- создание уровня ---
 
@@ -581,7 +588,7 @@ class JumpGame:
         self.check_enemies(old_bottom)
         self.move_camera()
 
-        if self.height_m >= self.next_milestone:
+        if self.peak_height_m >= self.next_milestone:
             self.popups.append({"text": f"{self.next_milestone} м!", "life": 90})
             self.next_milestone += 100
 
@@ -936,7 +943,7 @@ class JumpGame:
 
     def draw_hud(self):
         screen.blit(outlined_text(f"Высота: {self.height_m} м", font, TEXT_COLOR), (10, 8))
-        screen.blit(outlined_text(f"Рекорд: {max(self.best, self.height_m)} м", font, GOLD_COLOR), (10, 44))
+        screen.blit(outlined_text(f"Рекорд: {max(self.best, self.peak_height_m)} м", font, GOLD_COLOR), (10, 44))
         screen.blit(outlined_text(self.player_name, small_font, GRAY_COLOR), (10, 84))
         y = 10
         if self.rocket_timer > 0:

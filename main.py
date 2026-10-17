@@ -113,8 +113,8 @@ def start_game():
 
 def finish_game():
     global state, new_record, last_place
-    new_record = game.height_m > best_score()
-    last_place = add_record(game.height_m)
+    new_record = game.peak_height_m > best_score()
+    last_place = add_record(game.peak_height_m)
     state = "over"
 
 
@@ -124,9 +124,9 @@ def music_zone():
     """Зона, чья мелодия должна звучать: там, где сейчас герой. В меню играет мелодия замка."""
     height = 0
     if state in ("play", "over"):
-        height = game.height_m
+        height = game.peak_height_m
     elif state == "net" and net_screen.mode == "duel" and net_screen.session.game:
-        height = net_screen.session.game.height_m
+        height = net_screen.session.game.peak_height_m
     return BIOMES[biome_index(height)]["id"]
 
 
@@ -209,7 +209,7 @@ def draw_game_over():
     shade.fill((10, 6, 24, 160))
     screen.blit(shade, (0, 0))
     draw_title("Игра окончена", HEIGHT // 2 - 150)
-    for text, y, color in ((f"Высота: {game.height_m} м", HEIGHT // 2 - 40, TEXT_COLOR),
+    for text, y, color in ((f"Высота: {game.peak_height_m} м", HEIGHT // 2 - 40, TEXT_COLOR),
                            ("Новый рекорд!" if new_record else
                             f"Место в рекордах: {last_place}" if last_place else "", HEIGHT // 2 + 5, GOLD_COLOR),
                            ("R — ещё раз    Esc — в меню", HEIGHT // 2 + 80, TEXT_COLOR)):

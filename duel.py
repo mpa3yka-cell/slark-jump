@@ -595,8 +595,8 @@ class DuelSession:
             if game.t % SEND_EVERY == 0 or game.over:
                 self.conn.send({"type": "state", "attempt": self.attempt, **game.state_message()})
             if game.over:
-                self.my_results.append(game.height_m)
-                self.conn.send({"type": "attempt_end", "attempt": self.attempt, "height": game.height_m})
+                self.my_results.append(game.peak_height_m)
+                self.conn.send({"type": "attempt_end", "attempt": self.attempt, "height": game.peak_height_m})
                 self.phase = "pause"
                 self.timer = PAUSE_BETWEEN
         elif self.phase == "pause":
